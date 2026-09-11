@@ -17,13 +17,15 @@ def estimate_loss(model, data, block_size, batch_size, eval_iters, device):
     model.train()
     return losses.mean().item()
 
-def save_checkpoint(model, optimizer, step, checkpoint_dir):
+def save_checkpoint(model, optimizer, step, checkpoint_dir, config=None, chars=None):
     os.makedirs(checkpoint_dir, exist_ok=True)
     ckpt_path = os.path.join(checkpoint_dir, f"ckpt_step_{step}.pt")
     checkpoint = {
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "step": step,
+        "config": config,
+        "chars": chars,
     }
     torch.save(checkpoint, ckpt_path)
     latest_path = os.path.join(checkpoint_dir, "checkpoint_latest.pt")
@@ -55,6 +57,10 @@ def train(config_path: str):
     block_size = model_cfg.get("block_size", 64)
     dropout = model_cfg.get("dropout", 0.0)
 
+    # Put vocab_size explicitly into model config if not present
+    model_cfg_full = dict(model_cfg)
+    model_cfg_full["vocab_size"] = vocab_size
+
     model = GPT(
         vocab_size=vocab_size,
         n_embd=n_embd,
@@ -74,6 +80,12 @@ def train(config_path: str):
     checkpoint_dir = train_cfg.get("checkpoint_dir", "checkpoints")
     checkpoint_interval = train_cfg.get("checkpoint_interval", 100)
 
+    full_config = {
+        "data": data_cfg,
+        "model": model_cfg_full,
+        "training": train_cfg,
+    }
+
     model.train()
     for step in range(1, max_steps + 1):
         xb, yb = get_batch(train_data, block_size, batch_size, device=device)
@@ -89,7 +101,7 @@ def train(config_path: str):
             print(f"step {step:5d} | train loss: {train_loss:.4f} | val loss: {val_loss:.4f}")
 
         if step % checkpoint_interval == 0 or step == max_steps:
-            save_checkpoint(model, optimizer, step, checkpoint_dir)
+            save_checkpoint(model, optimizer, step, checkpoint_dir, config=full_config, chars=tokenizer.chars)
 
 def main():
     parser = argparse.ArgumentParser(description="Train NanoGPT model")
