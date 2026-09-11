@@ -14,5 +14,8 @@ COPY . .
 # Install nanogpt CLI package
 RUN pip install --no-cache-dir .
 
+# Expose HTTP port for serving
+EXPOSE 8000
+
 ENTRYPOINT ["nanogpt"]
-CMD ["--help"]
+CMD ["serve", "--host", "0.0.0.0", "--port", "8000"]

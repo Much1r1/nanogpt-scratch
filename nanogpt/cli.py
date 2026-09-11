@@ -1,7 +1,14 @@
 import sys
+import os
 import argparse
+import uvicorn
 from nanogpt.train import train
 from nanogpt.generate import generate_cli
+
+def serve_cli(args):
+    if args.checkpoint:
+        os.environ["CHECKPOINT_PATH"] = args.checkpoint
+    uvicorn.run("nanogpt.serve:app", host=args.host, port=args.port, reload=args.reload)
 
 def main():
     parser = argparse.ArgumentParser(prog="nanogpt", description="NanoGPT Command Line Interface")
@@ -19,6 +26,12 @@ def main():
     generate_parser.add_argument("--top-p", type=float, default=None, help="Top-p nucleus filtering threshold")
     generate_parser.add_argument("--config", type=str, default=None, help="Path to config YAML file (optional)")
     generate_parser.add_argument("--device", type=str, default="cpu", help="Device to run generation on")
+
+    serve_parser = subparsers.add_parser("serve", help="Start FastAPI HTTP server for NanoGPT model")
+    serve_parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint (sets CHECKPOINT_PATH env var)")
+    serve_parser.add_argument("--host", type=str, default="0.0.0.0", help="Host interface to bind to")
+    serve_parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
+    serve_parser.add_argument("--reload", action="store_true", help="Enable auto-reload on code change")
 
     args = parser.parse_args()
 
@@ -41,6 +54,8 @@ def main():
             gen_args.extend(["--config", args.config])
 
         generate_cli(gen_args)
+    elif args.command == "serve":
+        serve_cli(args)
 
 if __name__ == "__main__":
     main()
